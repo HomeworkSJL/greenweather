@@ -7,24 +7,18 @@ import com.google.gson.annotations.SerializedName;
  */
 
 public class Suggestion {
-    @SerializedName("comf")
-    public Comfort comfort;
+    public Info air;
+    public Info comf;
+    public Info cw;
+    public Info drsg;
+    public Info flu;
+    public Info sport;
+    public Info trav;
+    public Info uv;
 
-    @SerializedName("cw")
-    public CarWash carWash;
 
-    public Sport sport;
-
-    public class Comfort {
-        @SerializedName("txt")
-        public String info;
-    }
-    public class CarWash {
-        @SerializedName("txt")
-        public String info;
-    }
-    public class Sport {
-        @SerializedName("txt")
-        public String info;
+    public class Info {
+        public String brf;
+        public String txt;
     }
 }

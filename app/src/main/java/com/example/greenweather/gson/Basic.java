@@ -11,13 +11,18 @@ public class Basic {
     @SerializedName("city")
     public String cityName;
 
+    @SerializedName("cnty")
+    public String countryName;
+
     @SerializedName("id")
     public String weatherId;
-
+    public String lat;
+    public String lon;
     public Update update;
     public class Update{
         @SerializedName("loc")
         public String updateTime;
+        public String utc;
     }
 
 }
