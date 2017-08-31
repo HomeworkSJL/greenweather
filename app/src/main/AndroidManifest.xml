@@ -24,14 +24,14 @@
         <meta-data
             android:name="com.baidu.lbsapi.API_KEY"
             android:value="LXv7vNPGNPx5t0lGib0Z0rlH3jFDu11R" />
-        <activity android:name=".MainActivity">
+
+        <activity android:name=".WeatherActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-        <activity android:name=".WeatherActivity" />
+            </activity>
 
         <service
             android:name=".service.AutoUpdateService"

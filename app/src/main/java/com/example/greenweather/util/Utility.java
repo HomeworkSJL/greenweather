@@ -1,29 +1,17 @@
 package com.example.greenweather.util;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
-import android.content.SharedPreferences;
 import android.os.StrictMode;
-import android.preference.PreferenceManager;
-import android.text.TextUtils;
-import android.util.Log;
-import android.widget.Toast;
 
-import com.example.greenweather.MainActivity;
-import com.example.greenweather.MyApplication;
-import com.example.greenweather.WeatherActivity;
 import com.example.greenweather.db.City;
 import com.example.greenweather.db.County;
 import com.example.greenweather.db.Province;
 import com.example.greenweather.gson.NowCity;
 import com.example.greenweather.gson.Weather;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.JSONStringer;
+import org.litepal.crud.DataSupport;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -31,6 +19,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 
 /**
  * Created by Administrator on 2017/8/8.
@@ -38,73 +27,6 @@ import java.net.URL;
 
 public class Utility {
 
-    /**
-     * 解析和处理服务器返回的省级数据
-     */
-    public static boolean handleProvinceResponse(String response) {
-        if (!TextUtils.isEmpty(response)) {
-            try {
-                JSONArray allProvinces = new JSONArray(response);
-                for (int i = 0; i < allProvinces.length(); i++) {
-                    JSONObject provinceObject = allProvinces.getJSONObject(i);
-                    Province province = new Province();
-                    province.setProvinceName(provinceObject.getString("name"));
-                    province.setProvinceCode(provinceObject.getInt("id"));
-                    province.save();
-                }
-                return true;
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 解析和处理服务器返回的市级数据
-     */
-    public static boolean handleCityResponse(String response, int provinceId) {
-        if (!TextUtils.isEmpty(response)) {
-            try {
-                JSONArray allCities = new JSONArray(response);
-                for (int i = 0; i < allCities.length(); i++) {
-                    JSONObject cityObject = allCities.getJSONObject(i);
-                    City city = new City();
-                    city.setCityName(cityObject.getString("name"));
-                    city.setCityCode(cityObject.getInt("id"));
-                    city.setProvinceId(provinceId);
-                    city.save();
-                }
-                return true;
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 解析和处理服务器返回的县级数据
-     */
-    public static boolean handleCountyResponse(String response, int cityId) {
-        if (!TextUtils.isEmpty(response)) {
-            try {
-                JSONArray allCounties = new JSONArray(response);
-                for (int i = 0; i < allCounties.length(); i++) {
-                    JSONObject countyObject = allCounties.getJSONObject(i);
-                    County county = new County();
-                    county.setCountyName(countyObject.getString("name"));
-                    county.setWeatherId(countyObject.getString("weather_id"));
-                    county.setCityId(cityId);
-                    county.save();
-                }
-                return true;
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-        return false;
-    }
 
     public static Weather[] handleWeatherResponse(String response){
         try {
@@ -208,7 +130,73 @@ public class Utility {
         return response.toString();
     }
 
+    public static void RequestWeatherCityInfo() {
 
+        HttpURLConnection connection = null;
+        BufferedReader reader = null;
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
+                try {
+                    URL url = new URL("https://cdn.heweather.com/china-city-list.txt");
+                    connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("GET");
+                    connection.setConnectTimeout(2000);
+                    connection.setReadTimeout(3000);
+                    InputStream in = connection.getInputStream();
+                    // 下面对获取到的输入流进行读取
+                    reader = new BufferedReader(new InputStreamReader(in));
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String[] info = line.split("\t");
+                        String weatherId = info[0];
+                        if (weatherId != null && weatherId.indexOf("CN") >= 0) {
+                            String countyName = info[2];
+                            String provName = info[7];
+                            String superiorCity = info[9];
+                            List<County> counties = DataSupport.where("weatherId = ? ", info[0]).find(County.class);
+                            if (counties.size() == 0) {
+                                List<Province> provinces = DataSupport.where("provinceName = ? ", provName).find(Province.class);
+                                if (provinces.size() == 0) {
+                                    Province province = new Province();
+                                    province.setProvinceName(provName);
+                                    province.save();
+                                    provinces.add(province);
+                                }
+                                List<City> cities = DataSupport.limit(1).where("cityName = ? and provinceId = ?",
+                                        superiorCity, String.valueOf(provinces.get(0).getId()))
+                                        .find(City.class);
+                                if (cities.size() == 0) {
+                                    City city = new City();
+                                    city.setProvinceId(provinces.get(0).getId());
+                                    city.setCityName(superiorCity);
+                                    city.save();
+                                    cities.add(city);
+                                }
+                                County county = new County();
+                                county.setCityId(cities.get(0).getId());
+                                county.setCountyName(countyName);
+                                county.setWeatherId(weatherId);
+                                county.save();
+                            }
 
+                        }
+                        // response.append(line);
+                    }
+                    //        closeProgressDialog();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    if (reader != null) {
+                        try {
+                            reader.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    if (connection != null) {
+                        connection.disconnect();
+                    }
+                }
+            }
 
 }

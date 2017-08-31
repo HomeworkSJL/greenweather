@@ -15,11 +15,13 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
+import android.view.DragEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -35,10 +37,7 @@ import com.example.greenweather.service.AutoUpdateService;
 import com.example.greenweather.util.HttpUtil;
 import com.example.greenweather.util.Utility;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -47,17 +46,11 @@ import okhttp3.Callback;
 import okhttp3.Response;
 
 
-import com.google.android.gms.appindexing.Action;
-import com.google.android.gms.appindexing.AppIndex;
-import com.google.android.gms.appindexing.Thing;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.gson.Gson;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import com.example.greenweather.util.Utility;
 import com.google.gson.GsonBuilder;
 
 import static com.example.greenweather.util.Utility.getAddress;
@@ -95,21 +88,15 @@ public class WeatherActivity extends AppCompatActivity {
 
     private Weather[] oldWeather;
     private String oldBingPic;
+    private RelativeLayout noinfoLayout;
+    private boolean isNotShowed;
 
 
     private boolean glided ;
-    /**
-     * ATTENTION: This was auto-generated to implement the App Indexing API.
-     * See https://g.co/AppIndexing/AndroidStudio for more information.
-     */
-    private GoogleApiClient client;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-      /*  mLocationClient = new LocationClient(getApplicationContext());
-        mLocationClient.registerLocationListener(new MyLocationListener());
-        SDKInitializer.initialize(getApplicationContext());*/
         setContentView(R.layout.activity_weather);
 
         if (Build.VERSION.SDK_INT >= 21) {
@@ -147,14 +134,19 @@ public class WeatherActivity extends AppCompatActivity {
         fluText = (TextView) findViewById(R.id.flu);
         travText = (TextView) findViewById(R.id.trav);
         uvText = (TextView) findViewById(R.id.uv);
+        noinfoLayout = (RelativeLayout) findViewById(R.id.noinfolayout);
 
-        boolean glided = false;
+        glided = false;
+        isNotShowed = true;
+        mWeatherId = null;
+
 
 
         swipeRefresh = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh);
         swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
         drawerLayout = (DrawerLayout) findViewById(R.id.dwawer_layout);
         navButton = (Button) findViewById(R.id.nav_button);
+
         showinfo();
         navButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -164,10 +156,13 @@ public class WeatherActivity extends AppCompatActivity {
 
             }
         });
+
         swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                requestWeather(mWeatherId);
+                if(mWeatherId != null){
+                    requestWeather(mWeatherId);
+                }
             }
         });
         if (oldBingPic != null) {
@@ -176,9 +171,6 @@ public class WeatherActivity extends AppCompatActivity {
             loadBingPic();
         }
 
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
-        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
 
 
@@ -199,7 +191,6 @@ public class WeatherActivity extends AppCompatActivity {
                         else {
                             if (oldWeather != null && oldWeather[0] != null) {
                                 showWeatherInfo(oldWeather[0]);
-                                weatherLayout.setVisibility(View.VISIBLE);
                             }
                         }
                         swipeRefresh.setRefreshing(false);
@@ -232,7 +223,7 @@ public class WeatherActivity extends AppCompatActivity {
                                     editor = PreferenceManager.
                                             getDefaultSharedPreferences(WeatherActivity.this).
                                             edit();
-                                editor.putString("weathernew", responseText);
+                                editor.putString("weather", responseText);
                                 editor.apply();
                                 showWeatherInfo(oldWeather[0]);
                             }
@@ -259,6 +250,129 @@ public class WeatherActivity extends AppCompatActivity {
          loadBingPic();
     }
 
+
+///自动定位的天气
+
+    public void requestLocWeather(final String requestWeatherId, final double lat, final double lon) {
+        String wertherUrl = "https://free-api.heweather.com/v5/weather?city=" +
+                requestWeatherId + "&key=532bf4f8455c45bcb714dfb9ff70d49e";
+        HttpUtil.sendOkHttpRequest(wertherUrl, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(WeatherActivity.this, "获取天气数据失败，显示原有数据",
+                                Toast.LENGTH_SHORT).show();
+                            if (oldWeather != null && oldWeather[0] != null) {
+                                showWeatherInfo(oldWeather[0]);
+                        }
+                        swipeRefresh.setRefreshing(false);
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                final String responseText = response.body().string();
+                final Weather[] weather;
+                if (responseText.indexOf("\"basic\"") > 0) {
+                    weather = Utility.handleWeatherResponse(responseText);
+                    oldWeather = weather;
+                } else {
+                    weather = null;
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (weather != null && weather[0] != null && "ok".equals(weather[0].status)) {
+
+                            if (oldWeather != null && oldWeather.length > 1) {
+                                int k = 0;
+                                double compare = -1;
+                                double itempower;
+                                double latdtmp,londtmp;
+                                double latdif,londif;
+                                for(int i = 0; i < oldWeather.length; i++){
+                                    latdtmp = Double.valueOf(oldWeather[i].basic.lat);
+                                    londtmp =Double.valueOf(oldWeather[i].basic.lon);
+                                    latdif = latdtmp - lat;
+                                    londif = londtmp - lon;
+                                    itempower =  latdif * latdif + londif*londif;
+                                    if(compare < 0){
+                                        compare = itempower;
+                                        k = i;
+                                    }
+                                    else if(itempower < compare){
+                                        compare =itempower;
+                                        k = i;
+                                    }
+                                }
+                                /////////
+                                Gson gson;
+                                GsonBuilder builder = new GsonBuilder();
+                                gson = builder.create();
+                                String weatherContent = gson.toJson(oldWeather[k], Weather.class);
+                                try {
+                                    JSONArray ja0 = new JSONArray();
+                                    ja0.put(new JSONObject(weatherContent));
+                                    JSONObject h5 = new JSONObject();
+                                    h5.put("HeWeather5", ja0);
+                                    String output = h5.toString();
+                                    SharedPreferences.Editor editor ;
+                                    editor = PreferenceManager.
+                                            getDefaultSharedPreferences(WeatherActivity.this).edit();
+                                    editor.putString("weather", output);
+                                    editor.apply();
+                                    SharedPreferences prefs ;
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+
+
+                                showWeatherInfo(oldWeather[k]);
+
+
+
+                            }
+                            else {
+                                if(requestWeatherId.indexOf("CN") == -1){
+                                    oldWeather[0].basic.cityName = requestWeatherId;
+                                }
+                                SharedPreferences.Editor editor;
+                                editor = PreferenceManager.
+                                        getDefaultSharedPreferences(WeatherActivity.this).
+                                        edit();
+                                editor.putString("weather", responseText);
+
+                                editor.apply();
+                                showWeatherInfo(oldWeather[0]);
+                            }
+                            mWeatherId = requestWeatherId;
+                        } else {
+                            if (responseText.indexOf("{\"status\":\"unknown city\"}") > 0) {
+                                Toast.makeText(WeatherActivity.this, "城市名不对哦，显示原有数据",
+                                        Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(WeatherActivity.this, "获取天气信息异常，显示原有数据",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                            if (oldWeather != null && oldWeather[0] != null) {
+                                showWeatherInfo(oldWeather[0]);
+                            }
+                        }
+                        swipeRefresh.setRefreshing(false);
+
+                    }
+                });
+
+            }
+        });
+        loadBingPic();
+    }
+
+
+//////////
     private void showWeatherInfo(Weather weather) {
         String cityName = weather.basic.cityName;
         //  StringBuilder requestAddress= getAddress(weather.basic.lat,weather.basic.lon);
@@ -310,17 +424,20 @@ public class WeatherActivity extends AppCompatActivity {
                 weather.suggestion.trav.txt);
         uvText.setText("UV：" + weather.suggestion.uv.brf + "，" +
                 weather.suggestion.uv.txt);
-
-        weatherLayout.setVisibility(View.VISIBLE);
-        Intent intent = new Intent(this, AutoUpdateService.class);
-        startService(intent);
+        if(isNotShowed) {
+            isNotShowed = false;
+            noinfoLayout.setVisibility(View.GONE);
+            weatherLayout.setVisibility(View.VISIBLE);
+            Intent intent = new Intent(this, AutoUpdateService.class);
+            startService(intent);
+        }
     }
 
 
     private void loadBingPic() {
         /////
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this);
-        String weatherString = prefs.getString("weathernew", null);
+        String weatherString = prefs.getString("weather", null);
         boolean past = false;
         oldBingPic = prefs.getString("bing_pic", null);
         if (weatherString != null) {
@@ -387,6 +504,7 @@ public class WeatherActivity extends AppCompatActivity {
         public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
             // todo log exception
             glided = false;
+            Glide.with(WeatherActivity.this).load(R.drawable.bg).into(bingPicImg);
 
             // important to return false so the error placeholder can be placed
             return false;
@@ -400,10 +518,10 @@ public class WeatherActivity extends AppCompatActivity {
     };
 
     private void showinfo() {
+        weatherLayout.setVisibility(View.INVISIBLE);
         SharedPreferences prefs ;
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        String weatherString = prefs.getString("weathernew", null);
-        oldWeather = null;
+        String weatherString = prefs.getString("weather", null);
         oldBingPic = prefs.getString("bing_pic", null);
         if (weatherString != null) {
             //有缓存时直接解析天气数据
@@ -417,17 +535,9 @@ public class WeatherActivity extends AppCompatActivity {
             }
         }
         if (oldWeather == null) {
-            mWeatherId = getIntent().getStringExtra("weather_id");
-            if(mWeatherId == null){
-                weatherLayout.setVisibility(View.INVISIBLE);
-                drawerLayout.openDrawer(GravityCompat.START);
-            }
-            else {
-                weatherLayout.setVisibility(View.INVISIBLE);
-                requestWeather(mWeatherId);
-            }
+            drawerLayout.openDrawer(GravityCompat.START);
         }
-            loadBingPic();
+         //if(oldBingPic != null)   loadBingPic();
 
 
     }
@@ -467,9 +577,8 @@ public class WeatherActivity extends AppCompatActivity {
                     SharedPreferences.Editor editor ;
                     editor = PreferenceManager.
                                 getDefaultSharedPreferences(WeatherActivity.this).edit();
-                    editor.putString("weathernew", output);
+                    editor.putString("weather", output);
                         editor.apply();
-                    SharedPreferences prefs ;
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -482,42 +591,6 @@ public class WeatherActivity extends AppCompatActivity {
     );
     builder.show();
 }
-
-    /**
-     * ATTENTION: This was auto-generated to implement the App Indexing API.
-     * See https://g.co/AppIndexing/AndroidStudio for more information.
-     */
-    public Action getIndexApiAction() {
-        Thing object = new Thing.Builder()
-                .setName("Weather Page") // TODO: Define a title for the content shown.
-                // TODO: Make sure this auto-generated URL is correct.
-                .setUrl(Uri.parse("http://[ENTER-YOUR-URL-HERE]"))
-                .build();
-        return new Action.Builder(Action.TYPE_VIEW)
-                .setObject(object)
-                .setActionStatus(Action.STATUS_TYPE_COMPLETED)
-                .build();
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
-        client.connect();
-        AppIndex.AppIndexApi.start(client, getIndexApiAction());
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
-        // See https://g.co/AppIndexing/AndroidStudio for more information.
-        AppIndex.AppIndexApi.end(client, getIndexApiAction());
-        client.disconnect();
-    }
 
 
 }

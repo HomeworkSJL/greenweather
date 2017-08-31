@@ -3,7 +3,6 @@ package com.example.greenweather.util;
 import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -40,7 +39,6 @@ import com.baidu.location.BDLocation;
 import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
-import com.example.greenweather.MainActivity;
 import com.example.greenweather.MyApplication;
 import com.example.greenweather.R;
 import com.example.greenweather.WeatherActivity;
@@ -54,14 +52,10 @@ import com.example.greenweather.widget.MyGridView;
 
 import org.litepal.crud.DataSupport;
 
-import java.io.IOException;
-
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
 import com.example.greenweather.gson.LocCity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+
 
 import static com.example.greenweather.R.id.headcitylistlayout;
 import static com.example.greenweather.util.Utility.getAddress;
@@ -74,15 +68,12 @@ import static com.example.greenweather.util.Utility.sendRequestWithHttpURLConnec
 
 public class ChooseAreaFragment extends Fragment {
 
-    private static final String TAG = "ChooseAreaFragment";
-
     public static final int LEVEL_PROVINCE = 0;
 
     public static final int LEVEL_CITY = 1;
 
     public static final int LEVEL_COUNTY = 2;
 
-    private ProgressDialog progressDialog;
 
     private TextView titleText;
     private Button backButton;
@@ -139,7 +130,6 @@ public class ChooseAreaFragment extends Fragment {
     private TextView positionText;
 
     private LocCity locCity = null;
-    private LinearLayout loc_layout;
     private LinearLayout headcitylist_layout;
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -151,13 +141,13 @@ public class ChooseAreaFragment extends Fragment {
         setupTextView = (TextView) view.findViewById(R.id.citynameconcen);
         queryTextView = (TextView) view.findViewById(R.id.citynamequery);
         mClearEditText = (ClearEditText) view.findViewById(R.id.filter_edit);
-        loc_layout = (LinearLayout) view.findViewById(R.id.loc_layout);
 
         listView = (ListView) view.findViewById(R.id.country_lvcountry);
         adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, dataList);
         listView.setAdapter(adapter);
         mReMenCitys = new ArrayList<RemenCities>();
-    /*    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MyApplication.getContext());
+        locCity = new LocCity();
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MyApplication.getContext());
         String concencitieString = prefs.getString("concencities", null);
         if(concencitieString != null){
             String[] cityArray = concencitieString.split(";");
@@ -173,11 +163,11 @@ public class ChooseAreaFragment extends Fragment {
                 }
                 mReMenCitys.add(remenCities);
             }
-        }*/
+        }
 
 
         iv_left = (RelativeLayout)view.findViewById(R.id.iv_left);
-        View viewhead_city = View.inflate(MyApplication.getContext(), R.layout.head_city_list, null);
+        View viewhead_city = View.inflate(getActivity(), R.layout.head_city_list, null);
         headcitylist_layout = (LinearLayout) viewhead_city.findViewById(headcitylistlayout);
         if(mReMenCitys.size() > 0){
             headcitylist_layout.setVisibility(View.VISIBLE);
@@ -215,6 +205,7 @@ public class ChooseAreaFragment extends Fragment {
         } else {
             requestLocation();
         }
+
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -304,9 +295,9 @@ public class ChooseAreaFragment extends Fragment {
         positionText.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                //hideSoftInput(mClearEditText.getWindowToken());
+                hideSoftInput(mClearEditText.getWindowToken());
                 if(locCity != null){
-                    showCountyWeatherInfo(locCity.getCityName());
+                    showCountyWeatherLocInfo(locCity.getCityName(),locCity.getLat(),locCity.getLon());
                 }
 
             }
@@ -321,8 +312,10 @@ public class ChooseAreaFragment extends Fragment {
     private void queryProvinces() {
         titleText.setText("中国");
         backButton.setVisibility(View.GONE);
-        provinceList = DataSupport.findAll(Province.class);
-        if (provinceList.size() > 0) {
+        if(provinceList == null || provinceList.size() < 32){
+            provinceList = DataSupport.findAll(Province.class);
+        }
+        if (provinceList.size() >32) {
             dataList.clear();
             for (Province province : provinceList) {
                 dataList.add(province.getProvinceName());
@@ -330,10 +323,23 @@ public class ChooseAreaFragment extends Fragment {
             adapter.notifyDataSetChanged();
             listView.setSelection(0);
             currentLevel = LEVEL_PROVINCE;
-        } else {
-            String address = "http://guolin.tech/api/china";
-            queryFromServer(address, "province");
         }
+       /* else {
+            DataSupport.deleteAll("province");
+            DataSupport.deleteAll("city");
+            DataSupport.deleteAll("county");
+            Utility.RequestWeatherCityInfo();
+            provinceList = DataSupport.findAll(Province.class);
+            if (provinceList.size() > 0) {
+                dataList.clear();
+                for (Province province : provinceList) {
+                    dataList.add(province.getProvinceName());
+                }
+                adapter.notifyDataSetChanged();
+                listView.setSelection(0);
+                currentLevel = LEVEL_PROVINCE;
+            }
+        }*/
     }
 
     /**
@@ -362,11 +368,7 @@ public class ChooseAreaFragment extends Fragment {
 
 
 
-            } else {
-            int provinceCode = selectedProvince.getProvinceCode();
-            String address = "http://guolin.tech/api/china/" + provinceCode;
-            queryFromServer(address, "city");
-        }
+            }
     }
 
     /**
@@ -388,97 +390,25 @@ public class ChooseAreaFragment extends Fragment {
             adapter.notifyDataSetChanged();
             listView.setSelection(0);
             currentLevel = LEVEL_COUNTY;
-        } else {
-            int provinceCode = selectedProvince.getProvinceCode();
-            int cityCode = selectedCity.getCityCode();
-            String address = "http://guolin.tech/api/china/" + provinceCode + "/" + cityCode;
-            queryFromServer(address, "county");
         }
     }
 
-    /**
-     * 根据传入的地址和类型从服务器上查询省市县数据。
-     */
-    private void queryFromServer(String address, final String type) {
-        showProgressDialog();
-        HttpUtil.sendOkHttpRequest(address, new Callback() {
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                String responseText = response.body().string();
-                boolean result = false;
-                if ("province".equals(type)) {
-                    result = Utility.handleProvinceResponse(responseText);
-                } else if ("city".equals(type)) {
-                    result = Utility.handleCityResponse(responseText, selectedProvince.getId());
-                } else if ("county".equals(type)) {
-                    result = Utility.handleCountyResponse(responseText, selectedCity.getId());
-                }
-                if (result) {
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            closeProgressDialog();
-                            if ("province".equals(type)) {
-                                queryProvinces();
-                            } else if ("city".equals(type)) {
-                                queryCities();
-                            } else if ("county".equals(type)) {
-                                queryCounties();
-                            }
-                        }
-                    });
-                }
-            }
-
-            @Override
-            public void onFailure(Call call, IOException e) {
-                // 通过runOnUiThread()方法回到主线程处理逻辑
-                getActivity().runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        closeProgressDialog();
-                        Toast.makeText(getContext(), "加载失败", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
-    }
-
-    /**
-     * 显示进度对话框
-     */
-    private void showProgressDialog() {
-        if (progressDialog == null) {
-            progressDialog = new ProgressDialog(getActivity());
-            progressDialog.setMessage("正在加载...");
-            progressDialog.setCanceledOnTouchOutside(false);
-        }
-        progressDialog.show();
-    }
-
-    /**
-     * 关闭进度对话框
-     */
-    private void closeProgressDialog() {
-        if (progressDialog != null) {
-            progressDialog.dismiss();
-        }
-    }
     private void showCountyWeatherInfo(String weatherId){
-        if(getActivity() instanceof MainActivity){
-            Intent intent = new Intent(getActivity(),WeatherActivity.class);
-            intent.putExtra("weather_id", weatherId);
-            startActivity(intent);
-            getActivity().finish();
-        }
-        else if(getActivity() instanceof WeatherActivity){
-            WeatherActivity activity = (WeatherActivity) getActivity();
-            activity.drawerLayout.closeDrawers();
-            activity.swipeRefresh.setRefreshing(true);
-            activity.requestWeather(weatherId);
-        }
+        WeatherActivity activity = (WeatherActivity) getActivity();
+        activity.drawerLayout.closeDrawers();
+        activity.swipeRefresh.setRefreshing(true);
+        activity.requestWeather(weatherId);
+
     }
-/////fron City selector
+    private void showCountyWeatherLocInfo(String cityName,double lat,double lon){
+        WeatherActivity activity = (WeatherActivity) getActivity();
+        activity.drawerLayout.closeDrawers();
+        activity.swipeRefresh.setRefreshing(true);
+        activity.requestLocWeather(cityName,lat,lon);
+
+    }
+
+    /////fron City selector
 private class MyGridViewAdapter extends MyBaseAdapter<RemenCities, GridView> {
     private LayoutInflater inflater;
     public MyGridViewAdapter(Context ct, List<RemenCities> list) {
@@ -544,13 +474,13 @@ private class MyGridViewAdapter extends MyBaseAdapter<RemenCities, GridView> {
         public void onReceiveLocation(BDLocation location) {
             if(location != null && location.getDistrict() !=null) {
                 //StringBuilder currentPosition = new StringBuilder();
-                locCity = new LocCity();
+
                 locCity.setCityName(location.getDistrict());
                 locCity.setLat(location.getLatitude());
                 locCity.setLon(location.getLongitude());
                 //currentPosition.append(locCity.getCityName());
                 positionText.setText(locCity.getCityName());
-                loc_layout.setVisibility(View.VISIBLE);
+                positionText.setVisibility(View.VISIBLE);
                 mLocationClient.stop();
             }
         }
@@ -667,6 +597,7 @@ private class MyGridViewAdapter extends MyBaseAdapter<RemenCities, GridView> {
                 );
                 builder.show();
             }
+
 
 }
 
