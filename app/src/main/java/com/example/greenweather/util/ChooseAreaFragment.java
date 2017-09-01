@@ -119,7 +119,6 @@ public class ChooseAreaFragment extends Fragment {
     private List<String> provinces;
     private ClearEditText mClearEditText;
     private MyGridView mGridView;
-    private RelativeLayout iv_left;
     private MyGridViewAdapter gvAdapter;
     private ListView sortListView;
     private TextView setupTextView;
@@ -166,7 +165,6 @@ public class ChooseAreaFragment extends Fragment {
         }
 
 
-        iv_left = (RelativeLayout)view.findViewById(R.id.iv_left);
         View viewhead_city = View.inflate(getActivity(), R.layout.head_city_list, null);
         headcitylist_layout = (LinearLayout) viewhead_city.findViewById(headcitylistlayout);
         if(mReMenCitys.size() > 0){

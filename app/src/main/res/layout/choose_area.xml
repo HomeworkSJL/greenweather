@@ -103,16 +103,5 @@
         </FrameLayout>
 
     </LinearLayout>
-    <RelativeLayout
-        android:id="@+id/noinfolayout"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#666">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:text="首次运行，装入数据，请稍候"/>
-    </RelativeLayout>
 
 </LinearLayout>

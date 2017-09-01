@@ -5,23 +5,20 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.StrictMode;
 import android.preference.PreferenceManager;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
-import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
-import android.view.DragEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -34,6 +31,7 @@ import com.bumptech.glide.request.target.Target;
 import com.example.greenweather.gson.Forecast;
 import com.example.greenweather.gson.Weather;
 import com.example.greenweather.service.AutoUpdateService;
+import com.example.greenweather.util.ChooseAreaFragment;
 import com.example.greenweather.util.HttpUtil;
 import com.example.greenweather.util.Utility;
 
@@ -65,8 +63,6 @@ public class WeatherActivity extends AppCompatActivity {
     private TextView degreeText;
     private TextView weatherInfoText;
     private LinearLayout forecastLayout;
-    private LinearLayout forecastLayoutItem;
-    private LinearLayout cityLayout;
     private TextView aqiText;
     private TextView pm25Text;
     private TextView pm10Text;
@@ -85,14 +81,16 @@ public class WeatherActivity extends AppCompatActivity {
     public DrawerLayout drawerLayout;
     private Button navButton;
     private LinearLayout airLinearLayout;
+    private LinearLayout noinfoLayout;
+    private Button noinfoButton;
 
     private Weather[] oldWeather;
     private String oldBingPic;
-    private RelativeLayout noinfoLayout;
     private boolean isNotShowed;
 
 
     private boolean glided ;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,12 +103,8 @@ public class WeatherActivity extends AppCompatActivity {
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
             decorView.setSystemUiVisibility(option);
-            getWindow().setNavigationBarColor(Color.TRANSPARENT);
+            // getWindow().setNavigationBarColor(Color.TRANSPARENT);
             getWindow().setStatusBarColor(Color.TRANSPARENT);
-        }
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.hide();
         }
 
         //初始化各条件
@@ -120,8 +114,6 @@ public class WeatherActivity extends AppCompatActivity {
         degreeText = (TextView) findViewById(R.id.degree_text);
         weatherInfoText = (TextView) findViewById(R.id.weather_info_text);
         forecastLayout = (LinearLayout) findViewById(R.id.forecast_layout);
-        forecastLayoutItem = (LinearLayout) findViewById(R.id.forecast_item_layout);
-        cityLayout = (LinearLayout) findViewById(R.id.citylayout);
         airLinearLayout = (LinearLayout) findViewById(R.id.air);
         aqiText = (TextView) findViewById(R.id.aqi_text);
         pm25Text = (TextView) findViewById(R.id.pm25_text);
@@ -134,7 +126,10 @@ public class WeatherActivity extends AppCompatActivity {
         fluText = (TextView) findViewById(R.id.flu);
         travText = (TextView) findViewById(R.id.trav);
         uvText = (TextView) findViewById(R.id.uv);
-        noinfoLayout = (RelativeLayout) findViewById(R.id.noinfolayout);
+
+        noinfoLayout = (LinearLayout) findViewById(R.id.noinfoshow);
+        noinfoButton = (Button) findViewById(R.id.navnoifo_button);
+
 
         glided = false;
         isNotShowed = true;
@@ -148,10 +143,18 @@ public class WeatherActivity extends AppCompatActivity {
         navButton = (Button) findViewById(R.id.nav_button);
 
         showinfo();
+
+
         navButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                drawerLayout.openDrawer(GravityCompat.START);
 
+            }
+        });
+        noinfoButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
                 drawerLayout.openDrawer(GravityCompat.START);
 
             }
@@ -170,6 +173,10 @@ public class WeatherActivity extends AppCompatActivity {
         } else {
             loadBingPic();
         }
+
+
+
+
 
     }
 
@@ -220,9 +227,9 @@ public class WeatherActivity extends AppCompatActivity {
                                     oldWeather[0].basic.cityName = requestWeatherId;
                                 }
                                 SharedPreferences.Editor editor;
-                                    editor = PreferenceManager.
-                                            getDefaultSharedPreferences(WeatherActivity.this).
-                                            edit();
+                                editor = PreferenceManager.
+                                        getDefaultSharedPreferences(WeatherActivity.this).
+                                        edit();
                                 editor.putString("weather", responseText);
                                 editor.apply();
                                 showWeatherInfo(oldWeather[0]);
@@ -247,7 +254,7 @@ public class WeatherActivity extends AppCompatActivity {
 
             }
         });
-         loadBingPic();
+        loadBingPic();
     }
 
 
@@ -264,8 +271,8 @@ public class WeatherActivity extends AppCompatActivity {
                     public void run() {
                         Toast.makeText(WeatherActivity.this, "获取天气数据失败，显示原有数据",
                                 Toast.LENGTH_SHORT).show();
-                            if (oldWeather != null && oldWeather[0] != null) {
-                                showWeatherInfo(oldWeather[0]);
+                        if (oldWeather != null && oldWeather[0] != null) {
+                            showWeatherInfo(oldWeather[0]);
                         }
                         swipeRefresh.setRefreshing(false);
                     }
@@ -372,7 +379,7 @@ public class WeatherActivity extends AppCompatActivity {
     }
 
 
-//////////
+    //////////
     private void showWeatherInfo(Weather weather) {
         String cityName = weather.basic.cityName;
         //  StringBuilder requestAddress= getAddress(weather.basic.lat,weather.basic.lon);
@@ -424,10 +431,10 @@ public class WeatherActivity extends AppCompatActivity {
                 weather.suggestion.trav.txt);
         uvText.setText("UV：" + weather.suggestion.uv.brf + "，" +
                 weather.suggestion.uv.txt);
+        weatherLayout.setVisibility(View.VISIBLE);
         if(isNotShowed) {
             isNotShowed = false;
             noinfoLayout.setVisibility(View.GONE);
-            weatherLayout.setVisibility(View.VISIBLE);
             Intent intent = new Intent(this, AutoUpdateService.class);
             startService(intent);
         }
@@ -478,8 +485,8 @@ public class WeatherActivity extends AppCompatActivity {
                         final String bingPic = "http://s.cn.bing.net" + bingPicBody.substring(pos1, pos2);
                         oldBingPic = bingPic;
                         SharedPreferences.Editor editor ;
-                            editor = PreferenceManager.
-                                    getDefaultSharedPreferences(WeatherActivity.this).edit();
+                        editor = PreferenceManager.
+                                getDefaultSharedPreferences(WeatherActivity.this).edit();
 
 
                         editor.putString("bing_pic", bingPic);
@@ -498,7 +505,7 @@ public class WeatherActivity extends AppCompatActivity {
             });
         }
     }
-////监听glide加载情况
+    ////监听glide加载情况
     private RequestListener<String, GlideDrawable> requestListener = new RequestListener<String, GlideDrawable>() {
         @Override
         public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
@@ -528,16 +535,38 @@ public class WeatherActivity extends AppCompatActivity {
             oldWeather = Utility.handleWeatherResponse(weatherString);
             if (oldWeather != null) {
 
-                    mWeatherId = oldWeather[0].basic.weatherId;
+                mWeatherId = oldWeather[0].basic.weatherId;
 
                 weatherLayout.setVisibility(View.INVISIBLE);
                 requestWeather(mWeatherId);
             }
         }
         if (oldWeather == null) {
-            drawerLayout.openDrawer(GravityCompat.START);
+            Thread thread=new Thread(new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    addFregment();
+                    drawerLayout.openDrawer(GravityCompat.START);
+                }
+            });
+            thread.start();
+
         }
-         //if(oldBingPic != null)   loadBingPic();
+        else {
+            Thread thread=new Thread(new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    addFregment();
+                }
+            });
+            thread.start();
+        }
+
+        //if(oldBingPic != null)   loadBingPic();
 
 
     }
@@ -561,36 +590,43 @@ public class WeatherActivity extends AppCompatActivity {
         final String[] cities = citiestmp;
         //    设置一个下拉的列表选择项
         AlertDialog.Builder builder1 = builder.setItems(cities, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                /////////
-                Gson gson;
-                GsonBuilder builder = new GsonBuilder();
-                gson = builder.create();
-                String weatherContent = gson.toJson(oldWeather[which], Weather.class);
-                try {
-                    JSONArray ja0 = new JSONArray();
-                    ja0.put(new JSONObject(weatherContent));
-                    JSONObject h5 = new JSONObject();
-                    h5.put("HeWeather5", ja0);
-                    String output = h5.toString();
-                    SharedPreferences.Editor editor ;
-                    editor = PreferenceManager.
-                                getDefaultSharedPreferences(WeatherActivity.this).edit();
-                    editor.putString("weather", output);
-                        editor.apply();
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        /////////
+                        Gson gson;
+                        GsonBuilder builder = new GsonBuilder();
+                        gson = builder.create();
+                        String weatherContent = gson.toJson(oldWeather[which], Weather.class);
+                        try {
+                            JSONArray ja0 = new JSONArray();
+                            ja0.put(new JSONObject(weatherContent));
+                            JSONObject h5 = new JSONObject();
+                            h5.put("HeWeather5", ja0);
+                            String output = h5.toString();
+                            SharedPreferences.Editor editor ;
+                            editor = PreferenceManager.
+                                    getDefaultSharedPreferences(WeatherActivity.this).edit();
+                            editor.putString("weather", output);
+                            editor.apply();
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
+
+                        showWeatherInfo(oldWeather[which]);
+                    };
                 }
 
-
-            showWeatherInfo(oldWeather[which]);
-        };
+        );
+        builder.show();
     }
-
-    );
-    builder.show();
-}
+    private void addFregment(){
+        //动态加载碎片，缩短启动速度，这样能快些显示天气信息。
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        FragmentTransaction transaction = fragmentManager.beginTransaction();
+        transaction.replace(R.id.choose_area_fragment, new ChooseAreaFragment());
+        transaction.commit();
+    }
 
 
 }

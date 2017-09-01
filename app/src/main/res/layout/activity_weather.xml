@@ -3,12 +3,12 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/colorPrimary">
+    android:background="#666">
     <ImageView
         android:id="@+id/bing_pic_img"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:src="@drawable/bg"
+        android:src="@mipmap/logo"
         android:scaleType="centerCrop"
     />
 
@@ -30,12 +30,8 @@
                 android:scrollbars="none"
                 android:overScrollMode="never"
                 android:fitsSystemWindows="true">
-                <LinearLayout
-                    android:id="@+id/citylayout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fitsSystemWindows="true">
-                    <LinearLayout android:id="@+id/forecast_item_layout"
+
+                    <LinearLayout
                         android:orientation="vertical"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -54,16 +50,29 @@
                     </LinearLayout>
 
 
-                </LinearLayout>
+
             </ScrollView>
 
             </android.support.v4.widget.SwipeRefreshLayout>
-        <fragment
+        <LinearLayout
+            android:id="@+id/noinfoshow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <Button
+                android:id="@+id/navnoifo_button"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginLeft="10dp"
+                android:layout_alignParentLeft="true"
+                android:layout_marginTop="40dp"
+                android:background="@drawable/ic_home"/>
+        </LinearLayout>
+
+        <FrameLayout
             android:id="@+id/choose_area_fragment"
-            android:name="com.example.greenweather.util.ChooseAreaFragment"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            android:layout_gravity="start"/>
+            android:layout_gravity="start">
+        </FrameLayout>
     </android.support.v4.widget.DrawerLayout>
-
 </FrameLayout>
