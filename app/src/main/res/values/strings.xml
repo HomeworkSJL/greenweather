@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">青青天气</string>
+    <string name="inputcity">请输入城市</string>
+    <string name="citynamequery">查询</string>
+    <string name="citynameconcen">关注</string>
+    <string name="cityconcened">关注的城市</string>
+    <string name="cityconceneddel">长按取消关注</string>
+    <string name="airquality">空气质量</string>
+    <string name="aqi">AQI指数</string>
+    <string name="pm25">PM2.5指数</string>
+    <string name="pm10">PM10指数</string>
+    <string name="suggestion">生活建议</string>
 </resources>

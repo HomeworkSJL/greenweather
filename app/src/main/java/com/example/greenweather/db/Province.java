@@ -1,12 +1,10 @@
 package com.example.greenweather.db;
 
-import org.litepal.crud.DataSupport;
-
 /**
  * Created by Administrator on 2017/8/8.
  */
 
-public class Province extends DataSupport {
+public class Province {
 
     private int id;
 

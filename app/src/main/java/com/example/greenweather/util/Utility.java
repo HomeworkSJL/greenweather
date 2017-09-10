@@ -1,19 +1,25 @@
 package com.example.greenweather.util;
 
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.Environment;
 import android.os.StrictMode;
 
+import com.example.greenweather.MyApplication;
 import com.example.greenweather.db.City;
 import com.example.greenweather.db.County;
+import com.example.greenweather.db.MyDataBaseHelper;
 import com.example.greenweather.db.Province;
+import com.example.greenweather.gson.News;
 import com.example.greenweather.gson.NowCity;
 import com.example.greenweather.gson.Weather;
 import com.google.gson.Gson;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.litepal.crud.DataSupport;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -44,6 +50,41 @@ public class Utility {
         }
         return null;
     }
+
+    public static Weather[] handleJDWeatherResponse(String response){
+        try {
+            JSONObject jsonObject = new JSONObject(response);
+            JSONObject resultObject = jsonObject.getJSONObject("result");
+            JSONArray jsonArray = resultObject.getJSONArray("HeWeather5");
+            Weather[] weather = new Weather[jsonArray.length()];
+            for(int i = 0;i < jsonArray.length(); i++){
+                String weatherContent = jsonArray.getJSONObject(i).toString();
+                weather[i]= new Gson().fromJson(weatherContent, Weather.class);
+            }
+
+            return weather;
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static News handleJDNewsResponse(String response){
+        try {
+            JSONObject jsonObject = new JSONObject(response);
+            JSONObject resultObject = jsonObject.getJSONObject("result").getJSONObject("result");
+            //JSONArray jsonArray = resultObject.getJSONArray("list");
+            String newsContent = resultObject .toString();
+
+            News  news = new Gson().fromJson(newsContent, News.class);
+
+            return news;
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 
     public static NowCity[] handleNowCityResponse(String response){
         try {
@@ -103,8 +144,8 @@ public class Utility {
             URL url = new URL(urlString);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
-            connection.setConnectTimeout(8000);
-            connection.setReadTimeout(8000);
+            connection.setConnectTimeout(2000);
+            connection.setReadTimeout(2000);
             InputStream in = connection.getInputStream();
             // 下面对获取到的输入流进行读取
             reader = new BufferedReader(new InputStreamReader(in));
@@ -132,16 +173,23 @@ public class Utility {
 
     public static void RequestWeatherCityInfo() {
 
-        HttpURLConnection connection = null;
-        BufferedReader reader = null;
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-        StrictMode.setThreadPolicy(policy);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //  showProgressDialog();
+//                Toast.makeText(MyApplication.getContext(),"Start......",Toast.LENGTH_SHORT).show();
+                MyDataBaseHelper dbHelper;
+                HttpURLConnection connection = null;
+                BufferedReader reader = null;
+                deleteDBFile();
+                dbHelper = new MyDataBaseHelper(MyApplication.getContext(), "green_weather.db", null, 1);
+                SQLiteDatabase db = dbHelper.getWritableDatabase();
                 try {
                     URL url = new URL("https://cdn.heweather.com/china-city-list.txt");
                     connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("GET");
-                    connection.setConnectTimeout(2000);
-                    connection.setReadTimeout(3000);
+                    connection.setConnectTimeout(1500);
+                    connection.setReadTimeout(1500);
                     InputStream in = connection.getInputStream();
                     // 下面对获取到的输入流进行读取
                     reader = new BufferedReader(new InputStreamReader(in));
@@ -153,7 +201,40 @@ public class Utility {
                             String countyName = info[2];
                             String provName = info[7];
                             String superiorCity = info[9];
-                            List<County> counties = DataSupport.where("weatherId = ? ", info[0]).find(County.class);
+                            Cursor cursorCounty = db.query("County", null, "weatherid = ?",
+                                    new String[]{weatherId}, null, null, null, "1");
+                            if (!cursorCounty.moveToFirst()) {
+                                Cursor cursorProvince = db.query("Province", null, "provincename = ?",
+                                        new String[]{provName}, null, null, null, "1");
+                                if (!cursorProvince.moveToFirst()) {
+                                    db.execSQL("insert into Province (provincename) values(?)",
+                                            new String[]{provName});
+                                }
+                                cursorProvince = db.query("Province", null, "provincename = ?",
+                                        new String[]{provName}, null, null, null, "1");
+                                cursorProvince.moveToFirst();
+                                int provinceId = cursorProvince.getInt(cursorProvince.getColumnIndex("id"));
+                                cursorProvince.close();
+                                Cursor cursorCity = db.query("City", null, "provinceid = ? and cityname = ?",
+                                        new String[]{String.valueOf(provinceId), superiorCity}, null, null, null, "1");
+                                if (!cursorCity.moveToFirst()) {
+                                    db.execSQL("insert into City (cityname,provinceid) values(?,?)",
+                                            new String[]{superiorCity, String.valueOf(provinceId)});
+                                }
+                                cursorCity = db.query("City", null, "provinceid = ? and cityname = ?",
+                                        new String[]{String.valueOf(provinceId), superiorCity}, null, null, null, "1");
+                                cursorCity.moveToFirst();
+                                int cityId = cursorCity.getInt(cursorCity.getColumnIndex("id"));
+                                cursorCity.close();
+                                db.execSQL("insert into County (weatherid,cityid,countyname) values(?,?,?)",
+                                        new String[]{weatherId, String.valueOf(cityId), countyName});
+
+                                cursorCounty.close();
+
+                            }
+
+
+                            /*List<County> counties = DataSupport.where("weatherId = ? ", info[0]).find(County.class);
                             if (counties.size() == 0) {
                                 List<Province> provinces = DataSupport.where("provinceName = ? ", provName).find(Province.class);
                                 if (provinces.size() == 0) {
@@ -163,7 +244,7 @@ public class Utility {
                                     provinces.add(province);
                                 }
                                 List<City> cities = DataSupport.limit(1).where("cityName = ? and provinceId = ?",
-                                        superiorCity, String.valueOf(provinces.get(0).getId()))
+                                        superiorCity,String.valueOf(provinces.get(0).getId()))
                                         .find(City.class);
                                 if (cities.size() == 0) {
                                     City city = new City();
@@ -177,12 +258,10 @@ public class Utility {
                                 county.setCountyName(countyName);
                                 county.setWeatherId(weatherId);
                                 county.save();
-                            }
+                            }*/
 
                         }
-                        // response.append(line);
                     }
-                    //        closeProgressDialog();
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
@@ -197,6 +276,25 @@ public class Utility {
                         connection.disconnect();
                     }
                 }
+//                Toast.makeText(MyApplication.getContext(),"end......",Toast.LENGTH_SHORT).show();
             }
+        }).start();
+    }
 
-}
+    private static void deleteDBFile() {
+        String DB_NAME = "green_weather.db"; //保存的数据库文件名
+        String PACKAGE_NAME = "com.example.greenweather";
+        String DB_PATH = "/data"
+                + Environment.getDataDirectory().getAbsolutePath() + "/"
+                + PACKAGE_NAME;  //在手机里存放数据库的位置
+        String dbPath = DB_PATH + "/databases/";
+        String dbfile = dbPath + DB_NAME;
+        File dbFile =new File(dbfile);
+        if (dbFile.exists()) {//判断数据库文件是否存在，若存在则删除
+            dbFile.delete();
+
+        }
+
+    }
+
+    }

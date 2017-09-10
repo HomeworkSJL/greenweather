@@ -1,15 +1,13 @@
 package com.example.greenweather;
 
+import android.app.Application;
 import android.content.Context;
 import android.os.Environment;
 
 
 
-import org.litepal.LitePal;
-import org.litepal.LitePalApplication;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,14 +16,13 @@ import java.io.InputStream;
  * Created by Administrator on 2017/8/16.
  */
 
-public class MyApplication extends LitePalApplication {
+public class MyApplication extends Application {
     private static Context context;
     private static MyApplication instance;
     @Override
     public void onCreate(){
         context = getApplicationContext();
         createDatabase();
-        LitePal.initialize(context);
         instance = this;
 
 
@@ -61,7 +58,6 @@ public class MyApplication extends LitePalApplication {
                     is.close();
                 }
             }
-        } catch (FileNotFoundException e) {
         } catch (IOException e) {
         }
     }

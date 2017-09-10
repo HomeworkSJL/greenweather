@@ -5,6 +5,8 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -45,18 +47,19 @@ import com.example.greenweather.WeatherActivity;
 import com.example.greenweather.adapter.MyBaseAdapter;
 import com.example.greenweather.db.City;
 import com.example.greenweather.db.County;
+import com.example.greenweather.db.MyDataBaseHelper;
 import com.example.greenweather.db.Province;
 import com.example.greenweather.gson.NowCity;
 import com.example.greenweather.gson.RemenCities;
 import com.example.greenweather.widget.MyGridView;
 
-import org.litepal.crud.DataSupport;
 
 import com.example.greenweather.gson.LocCity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 
 
+import static android.support.v4.content.PermissionChecker.checkSelfPermission;
 import static com.example.greenweather.R.id.headcitylistlayout;
 import static com.example.greenweather.util.Utility.getAddress;
 import static com.example.greenweather.util.Utility.sendRequestWithHttpURLConnection;
@@ -89,17 +92,18 @@ public class ChooseAreaFragment extends Fragment {
     /**
      * 省列表
      */
-    private List<Province> provinceList;
+    private List<Province> provinceList = new ArrayList<Province>();
 
     /**
      * 市列表
      */
-    private List<City> cityList;
+    private List<City> cityList =new ArrayList<City>();
 
     /**
      * 县列表
      */
-    private List<County> countyList;
+    private List<County> countyList = new ArrayList<County>();
+
 
     /**
      * 选中的省份
@@ -120,7 +124,6 @@ public class ChooseAreaFragment extends Fragment {
     private ClearEditText mClearEditText;
     private MyGridView mGridView;
     private MyGridViewAdapter gvAdapter;
-    private ListView sortListView;
     private TextView setupTextView;
     private TextView queryTextView;
 
@@ -130,16 +133,15 @@ public class ChooseAreaFragment extends Fragment {
 
     private LocCity locCity = null;
     private LinearLayout headcitylist_layout;
+    private MyDataBaseHelper dbHelper = null;
+    private SQLiteDatabase db;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.choose_area, container, false);
         titleText = (TextView) view.findViewById(R.id.title_text);
-        positionText = (TextView) view.findViewById(R.id.loc_text);
         backButton = (Button) view.findViewById(R.id.back_button);
-        setupTextView = (TextView) view.findViewById(R.id.citynameconcen);
-        queryTextView = (TextView) view.findViewById(R.id.citynamequery);
-        mClearEditText = (ClearEditText) view.findViewById(R.id.filter_edit);
 
         listView = (ListView) view.findViewById(R.id.country_lvcountry);
         adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, dataList);
@@ -167,6 +169,11 @@ public class ChooseAreaFragment extends Fragment {
 
         View viewhead_city = View.inflate(getActivity(), R.layout.head_city_list, null);
         headcitylist_layout = (LinearLayout) viewhead_city.findViewById(headcitylistlayout);
+        positionText = (TextView) viewhead_city.findViewById(R.id.loc_text);
+        setupTextView = (TextView) viewhead_city.findViewById(R.id.citynameconcen);
+        queryTextView = (TextView) viewhead_city.findViewById(R.id.citynamequery);
+        mClearEditText = (ClearEditText) viewhead_city.findViewById(R.id.filter_edit);
+
         if(mReMenCitys.size() > 0){
             headcitylist_layout.setVisibility(View.VISIBLE);
         }
@@ -176,8 +183,7 @@ public class ChooseAreaFragment extends Fragment {
         gvAdapter = new MyGridViewAdapter(MyApplication.getContext(),mReMenCitys);
         mGridView.setAdapter(gvAdapter);
         mGridView.setSelector(new ColorDrawable(Color.TRANSPARENT));
-        sortListView = (ListView) view.findViewById(R.id.country_lvcountry);
-        sortListView.addHeaderView(viewhead_city);
+        listView.addHeaderView(viewhead_city);
         return view;
     }
 
@@ -185,22 +191,26 @@ public class ChooseAreaFragment extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        mLocationClient = new LocationClient(MyApplication.getContext());
-        mLocationClient.registerLocationListener(new MyLocationListener());
         List<String> permissionList = new ArrayList<>();
-        if (ContextCompat.checkSelfPermission(MyApplication.getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+        if (checkSelfPermission(MyApplication.getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             permissionList.add(Manifest.permission.ACCESS_FINE_LOCATION);
         }
-        if (ContextCompat.checkSelfPermission(MyApplication.getContext(), Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(MyApplication.getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionList.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
+        if (checkSelfPermission(MyApplication.getContext(), Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
             permissionList.add(Manifest.permission.READ_PHONE_STATE);
         }
-        if (ContextCompat.checkSelfPermission(MyApplication.getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(MyApplication.getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         }
         if (!permissionList.isEmpty()) {
             String [] permissions = permissionList.toArray(new String[permissionList.size()]);
-            ActivityCompat.requestPermissions(getActivity(), permissions, 1);
+            requestPermissions(permissions, 1);
         } else {
+            mLocationClient = new LocationClient(MyApplication.getContext());
+            mLocationClient.registerLocationListener(new MyLocationListener());
             requestLocation();
         }
 
@@ -243,6 +253,43 @@ public class ChooseAreaFragment extends Fragment {
                     showCountyWeatherInfo(weatherId);
                 }
 
+            }
+        });
+        mGridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, long id) {
+                new AlertDialog.Builder(getContext())
+                        .setMessage("要删除关注"+mReMenCitys.get(position).cityName+"吗？")
+                        .setPositiveButton("删除", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                hideSoftInput(mClearEditText.getWindowToken());
+                                mReMenCitys.remove(position);
+                                gvAdapter.notifyDataSetChanged();
+                                if(mReMenCitys.size() == 0){
+                                    headcitylist_layout.setVisibility(View.GONE);
+                                }
+                            }
+                        })
+                        .setNegativeButton("查询", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                hideSoftInput(mClearEditText.getWindowToken());
+                                String weatherId = mReMenCitys.get(position).weatherId;
+                                if(weatherId == null){
+                                    String cityName = mReMenCitys.get(position).cityName;
+                                    showCountyWeatherInfo(cityName);
+                                }
+                                else {
+                                    showCountyWeatherInfo(weatherId);
+                                }
+                            }
+                        })
+                        .show();
+
+
+
+                return true;
             }
         });
         setupTextView.setOnClickListener(new OnClickListener() {
@@ -308,52 +355,64 @@ public class ChooseAreaFragment extends Fragment {
      * 查询全国所有的省，优先从数据库查询，如果没有查询到再去服务器上查询。
      */
     private void queryProvinces() {
+        currentLevel = LEVEL_PROVINCE;
         titleText.setText("中国");
         backButton.setVisibility(View.GONE);
-        if(provinceList == null || provinceList.size() < 32){
-            provinceList = DataSupport.findAll(Province.class);
+        if(provinceList.size() == 0) {
+            dbHelper = new MyDataBaseHelper(MyApplication.getContext(), "green_weather.db", null, 1);
+            if (db == null) {
+                db = dbHelper.getReadableDatabase();
+            }
+            Cursor cursorProvince = db.query("Province", null, null, null, null, null, null);
+            if (cursorProvince.moveToFirst()) {
+                do {
+                    Province province = new Province();
+                    province.setId(cursorProvince.getInt(cursorProvince.getColumnIndex("id")));
+                    province.setProvinceName(cursorProvince.getString(cursorProvince.getColumnIndex("provincename")));
+                    provinceList.add(province);
+                } while (cursorProvince.moveToNext());
+            }
+            cursorProvince.close();
         }
-        if (provinceList.size() >32) {
+        if (provinceList.size() > 0) {
             dataList.clear();
             for (Province province : provinceList) {
                 dataList.add(province.getProvinceName());
             }
             adapter.notifyDataSetChanged();
             listView.setSelection(0);
-            currentLevel = LEVEL_PROVINCE;
         }
-       /* else {
-            DataSupport.deleteAll("province");
-            DataSupport.deleteAll("city");
-            DataSupport.deleteAll("county");
-            Utility.RequestWeatherCityInfo();
-            provinceList = DataSupport.findAll(Province.class);
-            if (provinceList.size() > 0) {
-                dataList.clear();
-                for (Province province : provinceList) {
-                    dataList.add(province.getProvinceName());
-                }
-                adapter.notifyDataSetChanged();
-                listView.setSelection(0);
-                currentLevel = LEVEL_PROVINCE;
-            }
-        }*/
     }
 
     /**
      * 查询选中省内所有的市，优先从数据库查询，如果没有查询到再去服务器上查询。
      */
     private void queryCities() {
-        cityList = DataSupport.where("provinceid = ?", String.valueOf(selectedProvince.getId())).find(City.class);
+        cityList.clear();
+        Cursor cursorCity = db.query("City",null,"provinceid = ? ",
+                new String[]{String.valueOf(selectedProvince.getId())},null,null,null);
+        if(cursorCity.moveToFirst()) {
+            do {
+                City city = new City();
+                city.setId(cursorCity.getInt(cursorCity.getColumnIndex("id")));
+                city.setCityName(cursorCity.getString(cursorCity.getColumnIndex("cityname")));
+                city.setProvinceId(cursorCity.getInt(cursorCity.getColumnIndex("provinceid")));
+                cityList.add(city);
+            } while (cursorCity.moveToNext());
+        }
+        cursorCity.close();
+
+        //cityList = DataSupport.where("provinceid = ?", String.valueOf(selectedProvince.getId())).find(City.class);
         if(cityList.size() == 1){
-            titleText.setText(selectedProvince.getProvinceName());
             backButton.setVisibility(View.VISIBLE);
             onlyOnecity = true;
             selectedCity = cityList.get(0);
             queryCounties();
         }
         else if (cityList.size() > 1) {
+            currentLevel = LEVEL_CITY;
             titleText.setText(selectedProvince.getProvinceName());
+
             backButton.setVisibility(View.VISIBLE);
             onlyOnecity = false;
             dataList.clear();
@@ -361,47 +420,59 @@ public class ChooseAreaFragment extends Fragment {
                 dataList.add(city.getCityName());
             }
             adapter.notifyDataSetChanged();
-            listView.setSelection(0);
-            currentLevel = LEVEL_CITY;
-
-
-
-            }
+            listView.setSelection(1);
+        }
     }
 
     /**
      * 查询选中市内所有的县，优先从数据库查询，如果没有查询到再去服务器上查询。
      */
     private void queryCounties() {
-        countyList = DataSupport.where("cityid = ?", String.valueOf(selectedCity.getId())).find(County.class);
+        countyList.clear();
+        Cursor cursorCounty = db.query("County",null,"cityid = ? ",
+                new String[]{String.valueOf(selectedCity.getId())},null,null,null);
+        if(cursorCounty.moveToFirst()) {
+            do {
+                County county = new County();
+                county.setId(cursorCounty.getInt(cursorCounty.getColumnIndex("id")));
+                county.setCityId(cursorCounty.getInt(cursorCounty.getColumnIndex("cityid")));
+                county.setWeatherId(cursorCounty.getString(cursorCounty.getColumnIndex("weatherid")));
+                county.setCountyName(cursorCounty.getString(cursorCounty.getColumnIndex("countyname")));
+                countyList.add(county);
+            } while (cursorCounty.moveToNext());
+        }
+        cursorCounty.close();
+
+
+        //countyList = DataSupport.where("cityid = ?", String.valueOf(selectedCity.getId())).find(County.class);
         if(countyList.size()  == 1){
             String weatherId = countyList.get(0).getWeatherId();
             showCountyWeatherInfo(weatherId);
 
         }else if (countyList.size() > 1) {
             titleText.setText(selectedCity.getCityName());
+            currentLevel = LEVEL_COUNTY;
             backButton.setVisibility(View.VISIBLE);
             dataList.clear();
             for (County county : countyList) {
                 dataList.add(county.getCountyName());
             }
             adapter.notifyDataSetChanged();
-            listView.setSelection(0);
-            currentLevel = LEVEL_COUNTY;
+            listView.setSelection(1);
         }
     }
+
+
 
     private void showCountyWeatherInfo(String weatherId){
         WeatherActivity activity = (WeatherActivity) getActivity();
         activity.drawerLayout.closeDrawers();
-        activity.swipeRefresh.setRefreshing(true);
         activity.requestWeather(weatherId);
 
     }
     private void showCountyWeatherLocInfo(String cityName,double lat,double lon){
         WeatherActivity activity = (WeatherActivity) getActivity();
         activity.drawerLayout.closeDrawers();
-        activity.swipeRefresh.setRefreshing(true);
         activity.requestLocWeather(cityName,lat,lon);
 
     }
@@ -485,15 +556,22 @@ private class MyGridViewAdapter extends MyBaseAdapter<RemenCities, GridView> {
     }
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        boolean granted = true;
         switch (requestCode) {
             case 1:
                 if (grantResults.length > 0) {
                     for (int result : grantResults) {
                         if (result != PackageManager.PERMISSION_GRANTED) {
+                            granted = false;
                             Toast.makeText(MyApplication.getContext(), "必须同意所有权限才能使用自动定位", Toast.LENGTH_SHORT).show();
                         }
                     }
-                    requestLocation();
+
+                    if(granted){
+                        mLocationClient = new LocationClient(MyApplication.getContext());
+                        mLocationClient.registerLocationListener(new MyLocationListener());
+                        requestLocation();
+                    }
                 } else {
                     Toast.makeText(MyApplication.getContext(), "发生未知错误", Toast.LENGTH_SHORT).show();
                 }
@@ -595,6 +673,12 @@ private class MyGridViewAdapter extends MyBaseAdapter<RemenCities, GridView> {
                 );
                 builder.show();
             }
+    @Override
+    public void onDestroy(){
+        super.onDestroy();
+        db.close();
+        dbHelper.close();
+    }
 
 
 }

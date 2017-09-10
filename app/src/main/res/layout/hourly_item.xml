@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="40dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginTop="15dp"
+    android:layout_marginBottom="15dp"
+    android:layout_marginLeft="5dp"
+    android:layout_marginRight="0dp"
+    >
+
+    <TextView
+        android:id="@+id/hour_text"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textColor="#000"/>
+
+    <TextView
+        android:id="@+id/hourinfo_text"
+        android:layout_width="40dp"
+        android:maxLines="1"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:textSize="12sp"
+        android:textColor="#000"/>
+    <TextView
+        android:id="@+id/hourtmp_text"
+        android:maxLines="1"
+        android:layout_width="40dp"
+        android:layout_gravity="center"
+        android:textSize="12sp"
+        android:layout_height="wrap_content"
+        android:textColor="#000"/>
+
+    <TextView
+        android:id="@+id/hourwind_text"
+        android:maxLines="1"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:textSize="12sp"
+        android:textColor="#000"/>
+
+
+    <TextView
+        android:id="@+id/hourwindsc_text"
+        android:maxLines="1"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:textSize="12sp"
+        android:textColor="#000"/>
+
+
+</LinearLayout>

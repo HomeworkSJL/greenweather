@@ -10,25 +10,32 @@
         android:id="@+id/degree_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end"
+        android:layout_gravity="center_horizontal"
         android:textColor="#fff"
         android:textSize="60sp" />
-
+<RelativeLayout
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
     <TextView
         android:id="@+id/weather_info_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end"
+        android:layout_centerHorizontal="true"
         android:textColor="#fff"
         android:textSize="20sp" />
 
     <TextView
-        android:id="@+id/position_text"
+        android:id="@+id/updatetime_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end"
-        android:textColor="#fff"
-        android:textSize="20sp" />
+        android:layout_alignParentRight="true"
+        android:clickable="true"
+        android:drawableLeft="@drawable/refresh1"
+        android:textColor="#000"
+        android:background="#8fff"
+        android:text="更新"
+        android:textSize="10sp" />
 
-
+</RelativeLayout>
 </LinearLayout>

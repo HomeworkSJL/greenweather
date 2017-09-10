@@ -1,12 +1,12 @@
 package com.example.greenweather.db;
 
-import org.litepal.crud.DataSupport;
 
 /**
  * Created by Administrator on 2017/8/8.
  */
 
-public class City extends DataSupport {
+
+public class City  {
 
     private int id;
 
@@ -39,4 +39,5 @@ public class City extends DataSupport {
     public void setProvinceId(int provinceId) {
         this.provinceId = provinceId;
     }
+
 }
