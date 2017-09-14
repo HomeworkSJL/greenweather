@@ -1,20 +1,18 @@
 package com.example.greenweather.util;
 
 import android.Manifest;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,7 +26,6 @@ import android.widget.EditText;
 import android.widget.GridView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.view.View.OnClickListener;
@@ -135,7 +132,7 @@ public class ChooseAreaFragment extends Fragment {
     private LinearLayout headcitylist_layout;
     private MyDataBaseHelper dbHelper = null;
     private SQLiteDatabase db;
-
+    public Typeface typeface;
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -258,36 +255,40 @@ public class ChooseAreaFragment extends Fragment {
         mGridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, final int position, long id) {
-                new AlertDialog.Builder(getContext())
-                        .setMessage("要删除关注"+mReMenCitys.get(position).cityName+"吗？")
-                        .setPositiveButton("删除", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                hideSoftInput(mClearEditText.getWindowToken());
-                                mReMenCitys.remove(position);
-                                gvAdapter.notifyDataSetChanged();
-                                if(mReMenCitys.size() == 0){
-                                    headcitylist_layout.setVisibility(View.GONE);
-                                }
-                            }
-                        })
-                        .setNegativeButton("查询", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                hideSoftInput(mClearEditText.getWindowToken());
-                                String weatherId = mReMenCitys.get(position).weatherId;
-                                if(weatherId == null){
-                                    String cityName = mReMenCitys.get(position).cityName;
-                                    showCountyWeatherInfo(cityName);
-                                }
-                                else {
-                                    showCountyWeatherInfo(weatherId);
-                                }
-                            }
-                        })
-                        .show();
+                
 
+                final CSOKCancelDialog myDialog=new CSOKCancelDialog(getContext());
+                myDialog.getWindow().setLayout(500,250); //对话框大小应根据屏幕大小调整
+                myDialog.setContent("要取消关注\n"+mReMenCitys.get(position).cityName+"吗？");
+                myDialog.setOnPositiveListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        hideSoftInput(mClearEditText.getWindowToken());
+                        mReMenCitys.remove(position);
+                        gvAdapter.notifyDataSetChanged();
+                        if(mReMenCitys.size() == 0){
+                            headcitylist_layout.setVisibility(View.GONE);
+                        }
+                        myDialog.dismiss();
+                    }
+                });
+                myDialog.setOnNegativeListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        hideSoftInput(mClearEditText.getWindowToken());
+                        String weatherId = mReMenCitys.get(position).weatherId;
+                        if(weatherId == null){
+                            String cityName = mReMenCitys.get(position).cityName;
+                            showCountyWeatherInfo(cityName);
+                        }
+                        else {
+                            showCountyWeatherInfo(weatherId);
+                        }
+                        myDialog.dismiss();
+                    }
 
+                });
+                myDialog.show();
 
                 return true;
             }

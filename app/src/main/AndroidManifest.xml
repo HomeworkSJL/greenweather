@@ -27,8 +27,8 @@
             android:value="LXv7vNPGNPx5t0lGib0Z0rlH3jFDu11R" />
 
         <activity android:name=".WeatherActivity"
-            android:launchMode="singleTask"
-            android:screenOrientation="portrait">
+            android:launchMode="singleTask">
+            >
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -1,15 +1,20 @@
 package com.example.greenweather.adapter;
 
+import android.content.res.Resources;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.bumptech.glide.Glide;
+import com.example.greenweather.MyApplication;
 import com.example.greenweather.R;
 import com.example.greenweather.gson.Hourly;
 
 import java.util.List;
+
 
 /**
  * Created by Administrator on 2017/9/5.
@@ -20,18 +25,18 @@ public class HourlyForecastAdapter extends RecyclerView.Adapter <HourlyForecastA
     static class ViewHolder extends RecyclerView.ViewHolder
     {
         //ImageView hourlyIcon;
-        TextView hourlyInfo;
         TextView hour;
         TextView hourWind;
         TextView hourWindsc;
         TextView hourTmp;
+        ImageView weatherIcon;
         public ViewHolder(View view){
             super(view);
             hour = (TextView) view.findViewById(R.id.hour_text);
-            hourlyInfo = (TextView) view.findViewById(R.id.hourinfo_text);
             hourWind = (TextView) view.findViewById(R.id.hourwind_text);
             hourWindsc = (TextView) view.findViewById(R.id.hourwindsc_text);
             hourTmp = (TextView) view.findViewById(R.id.hourtmp_text);
+            weatherIcon = (ImageView) view.findViewById(R.id.weathericon);
         }
 
     }
@@ -60,9 +65,17 @@ public class HourlyForecastAdapter extends RecyclerView.Adapter <HourlyForecastA
             holder.hour.setText(timeHour+"时");
         }
         holder.hourTmp.setText(hourly.tmp + "°");
-        holder.hourlyInfo.setText(hourly.cond.txt);
         holder.hourWind.setText(hourly.wind.dir);
         holder.hourWindsc.setText(hourly.wind.sc+"级");
+        Resources res = MyApplication.getContext().getResources();
+
+        int resIdentifier = res.getIdentifier("h" + hourly.cond.code, "drawable", "com.example.greenweather");
+        Glide
+                .with(MyApplication.getContext())
+                .load(resIdentifier)
+                .into(holder.weatherIcon);
+
+        //holder.weatherIcon.setImageResource(resIdentifier);
 
 
     }

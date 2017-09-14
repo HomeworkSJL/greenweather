@@ -29,7 +29,8 @@
         android:id="@+id/newstitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="14sp"
+        android:textSize="16sp"
+        android:lineSpacingExtra="6dp"
         android:textStyle="bold"
         android:textColor="#000"/>
 
@@ -58,7 +59,6 @@
             android:id="@+id/newscontent"
             android:visibility="gone"
             android:orientation="vertical"
-            android:textSize="14sp"
             android:textColor="#000"
         android:layout_width="match_parent"
             android:layout_height="match_parent">
